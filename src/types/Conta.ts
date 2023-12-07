@@ -1,16 +1,27 @@
+import { Armazenador } from "./Armazenador.js";
 import { GrupoTransacao } from "./GrupoTransacao.js";
 import { TipoTransacao } from "./TipoTransacao.js";
 import { Transacao } from "./Transacao.js";
 
 export class Conta {
   protected nome: string;
-  protected saldo: number = JSON.parse(localStorage.getItem("saldo")) || 0;
+  protected saldo: number = Armazenador.obter<number>("saldo") || 0;
+  // protected saldo: number = JSON.parse(localStorage.getItem("saldo")) || 0;
+  private transacoes: Transacao[] = Armazenador.obter<Transacao[]>("transacoes", (key: string, value: any) => {
+    if (key === "data") {
+      return new Date(value);
+    }
+    return value;
+  }) || [];
+
+  /*
   private transacoes: Transacao[] = JSON.parse(localStorage.getItem("transacoes"), (key: string, value: any) => {
     if (key === "data") {
       return new Date(value);
     }
     return value;
   }) || [];
+  */
 
   constructor(nome: string) {
     this.nome = nome;
@@ -19,7 +30,7 @@ export class Conta {
   getGruposTransacoes(): GrupoTransacao[] {
     const gruposTransacoes: GrupoTransacao[] = [];
     const listaTransacoes: Transacao[] = structuredClone(this.transacoes);
-    const transacoesOrdenadas: Transacao[] = listaTransacoes.sort((t1, t2) => t2.data.getTime() - t1.data.getTime());
+    const transacoesOrdenadas: Transacao[] = listaTransacoes.sort((t1, t2) => t2.data.getTime() - t1.data.getTime()); // Organiza do mais recente para o mais antigo
     let labelAtualGrupoTransacao: string = "";
 
     for (let transacao of transacoesOrdenadas) {
@@ -31,7 +42,7 @@ export class Conta {
           transacoes: []
         });
       }
-      gruposTransacoes.at(-1).transacoes.push(transacao);
+      gruposTransacoes.at(-1).transacoes.push(transacao); // Adiciona no ultimo
     }
 
     return gruposTransacoes;
@@ -63,7 +74,8 @@ export class Conta {
 
     this.transacoes.push(novaTransacao);
     console.log(this.getGruposTransacoes());
-    localStorage.setItem("transacoes", JSON.stringify(this.transacoes));
+    Armazenador.salvar("transacoes", JSON.stringify(this.transacoes));
+    // localStorage.setItem("transacoes", JSON.stringify(this.transacoes));
   }
 
   private debitar(valor: number): void {
@@ -75,7 +87,8 @@ export class Conta {
     }
 
     this.saldo -= valor;
-    localStorage.setItem("saldo", this.saldo.toString());
+    Armazenador.salvar("saldo", this.saldo.toString());
+    // localStorage.setItem("saldo", this.saldo.toString());
   }
 
   private depositar(valor: number): void {
@@ -84,10 +97,22 @@ export class Conta {
     }
 
     this.saldo += valor;
-    localStorage.setItem("saldo", this.saldo.toString());
+    Armazenador.salvar("saldo", this.saldo.toString());
+    // localStorage.setItem("saldo", this.saldo.toString());
   }
 }
 
-const conta = new Conta("Joana");
+export class ContaPremium extends Conta {
+  registrarTransacao(transacao: Transacao): void {
+    if (transacao.tipoTransacao === TipoTransacao.DEPOSITO) {
+      console.log("ganhou um bônus de 0.50 centavos");
+      transacao.valor += 0.5;
+    }
+    super.registrarTransacao(transacao);
+  }
+}
+
+const conta = new Conta("Joana da Silva Oliveira");
+const contaPremium = new ContaPremium("Mônica Hillman");
 console.log(conta.getTitular())
 export default conta;
